@@ -24,6 +24,7 @@ export async function initCodespace(type, templateURL) {
     outputFrame.style.width = "100%";
     outputFrame.style.height = "300px";
     outputFrame.style.border = "1px solid #444";
+    outputFrame.sandbox = "allow-scripts allow-same-origin";
     codespace.appendChild(outputFrame);
   }
 }
@@ -37,12 +38,27 @@ async function runCode() {
     const url = URL.createObjectURL(blob);
     outputFrame.src = url;
   } 
+  else if (currentType === "js") {
+    const wrapped = `
+      <script>
+        try {
+          console.clear();
+          console.log = (msg)=>parent.postMessage({type:'jslog', msg}, '*');
+          ${code}
+        } catch(e) { parent.postMessage({type:'jslog', msg:e.toString()}, '*'); }
+      </script>
+    `;
+    const blob = new Blob([wrapped], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    outputFrame.src = url;
+  }
   else if (currentType === "python") {
-    // TODO: Hook this up to your backend sandbox
-    // For now, just fake output
-    outputFrame.srcdoc = `<pre>Running Python code...\n${code}</pre>`;
-  } 
-  else {
-    outputFrame.srcdoc = `<pre>No run support for this type.</pre>`;
+    outputFrame.srcdoc = `<pre>Python runner not connected yet.\n${code}</pre>`;
   }
 }
+
+window.addEventListener('message', (e)=>{
+  if (e.data.type === 'jslog') {
+    console.log("JS Output:", e.data.msg);
+  }
+});
